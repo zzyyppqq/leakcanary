@@ -36,3 +36,4 @@ include ':shark:shark-test'
 rootProject.name = 'leakcanary-repo'
 
 enableFeaturePreview("TYPESAFE_PROJECT_ACCESSORS")
+include ':samples:java-sample'

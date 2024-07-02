@@ -14,6 +14,7 @@ import android.content.pm.PackageManager.DONT_KILL_APP
 import android.content.res.Configuration
 import android.os.Handler
 import android.os.HandlerThread
+import android.util.Log
 import com.squareup.leakcanary.core.BuildConfig
 import com.squareup.leakcanary.core.R
 import leakcanary.AppWatcher
@@ -32,6 +33,17 @@ import leakcanary.internal.friendly.mainHandler
 import leakcanary.internal.friendly.noOpDelegate
 import leakcanary.internal.tv.TvOnRetainInstanceListener
 import shark.SharkLog
+
+ object A: (Application) -> Unit {
+   override fun invoke(p1: Application) {
+
+   }
+ }
+
+fun testA(application: Application) {
+  A(application)
+  A.invoke(application)
+}
 
 internal object InternalLeakCanary : (Application) -> Unit, OnObjectRetainedListener {
 
@@ -118,11 +130,11 @@ internal object InternalLeakCanary : (Application) -> Unit, OnObjectRetainedList
 
   override fun invoke(application: Application) {
     _application = application
-
+    SharkLog.d { "InternalLeakCanary invoke start [${Log.getStackTraceString(Throwable())}]" }
     checkRunningInDebuggableBuild()
-
+    // 回调触发 HeapDumpTrigger scheduleRetainedObjectCheck方法
     AppWatcher.objectWatcher.addOnObjectRetainedListener(this)
-
+    // 创建gc触发器
     val gcTrigger = GcTrigger.inProcess()
 
     val configProvider = { LeakCanary.config }
@@ -130,16 +142,21 @@ internal object InternalLeakCanary : (Application) -> Unit, OnObjectRetainedList
     val handlerThread = HandlerThread(LEAK_CANARY_THREAD_NAME)
     handlerThread.start()
     val backgroundHandler = Handler(handlerThread.looper)
-
+    // 堆转储触发器
     heapDumpTrigger = HeapDumpTrigger(
       application, backgroundHandler, AppWatcher.objectWatcher, gcTrigger,
       configProvider
     )
+    // 注册应用界面可见性监听（亮灭屏广播、Activity生命周期）
     application.registerVisibilityListener { applicationVisible ->
       this.applicationVisible = applicationVisible
+      // 页面不可见触发 HeapDumpTrigger scheduleRetainedObjectCheck() -> checkRetainedObjects()
+      SharkLog.d { "InternalLeakCanary invoke registerVisibilityListener() -> HeapDumpTrigger.onApplicationVisibilityChanged -> HeapDumpTrigger.scheduleRetainedObjectCheck() -> checkRetainedObjects()" }
       heapDumpTrigger.onApplicationVisibilityChanged(applicationVisible)
     }
+    // 注册resumedActivity监听
     registerResumedActivityListener(application)
+    // 生成应用的LeakCanary快捷图标
     LeakCanaryAndroidInternalUtils.addLeakActivityDynamicShortcut(application)
 
     // We post so that the log happens after Application.onCreate() where
@@ -159,6 +176,7 @@ internal object InternalLeakCanary : (Application) -> Unit, OnObjectRetainedList
         }
       }
     }
+    SharkLog.d { "InternalLeakCanary invoke end" }
   }
 
   private fun checkRunningInDebuggableBuild() {
@@ -224,6 +242,7 @@ internal object InternalLeakCanary : (Application) -> Unit, OnObjectRetainedList
   }
 
   fun sendEvent(event: Event) {
+    SharkLog.d { "InternalLeakCanary sendEvent event: $event" }
     for(listener in LeakCanary.config.eventListeners) {
       listener.onEvent(event)
     }

@@ -15,6 +15,7 @@ class DelayedDeletableObjectReporter(
    * status. You should generally use [DefaultDelayDeletableObjectReporter], this is only useful
    * if [target] is a special object that you know needs more time to stop being strongly reachable.
    *
+   * 与DeletableObjectReporter.expectDeletionFor相同，但允许在预计target被删除时提供延迟。
    */
   fun expectDelayedDeletionFor(
     target: Any,

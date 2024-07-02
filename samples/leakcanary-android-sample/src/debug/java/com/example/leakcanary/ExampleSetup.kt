@@ -60,7 +60,7 @@ class ExampleSetup {
         objectRetainedListeners.forEach { it.onObjectRetained() }
       }
     )
-
+    // 自定义deletableObjectReporter
     val deletableObjectReporter = DefaultDelayDeletableObjectReporter(
       defaultDelay = 5.seconds,
       delayedReporter = DelayedDeletableObjectReporter(

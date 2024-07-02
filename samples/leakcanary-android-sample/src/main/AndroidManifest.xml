@@ -42,5 +42,7 @@
     <service
         android:name=".LeakingService"
         android:exported="false"/>
+
+    <activity android:name=".LeakActivity" android:exported="false"/>
   </application>
 </manifest>

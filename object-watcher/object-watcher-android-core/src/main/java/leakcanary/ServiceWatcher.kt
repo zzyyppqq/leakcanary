@@ -132,7 +132,7 @@ class ServiceWatcher(private val deletableObjectReporter: DeletableObjectReporte
       }
     }
   }
-
+  // hook ActivityThread mH的mCallback回调
   private fun swapActivityThreadHandlerCallback(swap: (Handler.Callback?) -> Handler.Callback?) {
     val mHField =
       activityThreadClass.getDeclaredField("mH").apply { isAccessible = true }

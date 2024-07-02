@@ -45,6 +45,9 @@ class MainActivity : Activity() {
 
     val app = application as ExampleApplication
     findViewById<Button>(R.id.recreate_activity_button).setOnClickListener { recreate() }
+    findViewById<Button>(R.id.leak_activity_button2).setOnClickListener {
+      startActivity(Intent(this, LeakActivity::class.java))
+    }
     findViewById<Button>(R.id.leak_activity_button).setOnClickListener {
       val leakedView = findViewById<View>(R.id.helper_text)
       when (Random.nextInt(4)) {
@@ -83,6 +86,7 @@ class MainActivity : Activity() {
       leakyReceiver = true
       recreate()
     }
+    // 消息泄露
     findViewById<Button>(R.id.message_leak_button).setOnClickListener {
       val leaky = Any()
       AppWatcher.objectWatcher.expectWeaklyReachable(leaky, "Repeated Message")
@@ -95,6 +99,7 @@ class MainActivity : Activity() {
       }
       LeakyReschedulingRunnable(leaky).run()
     }
+    // 动画泄露
     findViewById<Button>(R.id.infinite_animator).setOnClickListener { view ->
       ObjectAnimator.ofFloat(view, View.ALPHA, 0.1f, 0.2f).apply {
         duration = 100

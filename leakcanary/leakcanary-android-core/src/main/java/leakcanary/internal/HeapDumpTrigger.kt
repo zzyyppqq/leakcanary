@@ -7,6 +7,7 @@ import android.content.Context
 import android.content.res.Resources.NotFoundException
 import android.os.Handler
 import android.os.SystemClock
+import android.util.Log
 import com.squareup.leakcanary.core.R
 import java.util.UUID
 import kotlin.time.Duration.Companion.milliseconds
@@ -95,18 +96,24 @@ internal class HeapDumpTrigger(
   }
 
   private fun checkRetainedObjects() {
+    // 检测保留的对象
+    SharkLog.d { "HeapDumpTrigger checkRetainedObjects" }
     val iCanHasHeap = HeapDumpControl.iCanHasHeap()
 
     val config = configProvider()
-
+    // 无法堆转储
     if (iCanHasHeap is Nope) {
       if (iCanHasHeap is NotifyingNope) {
         // Before notifying that we can't dump heap, let's check if we still have retained object.
         var retainedReferenceCount = retainedObjectTracker.retainedObjectCount
-
+        SharkLog.d { "HeapDumpTrigger checkRetainedObjects NotifyingNope retainedReferenceCount: $retainedReferenceCount" }
         if (retainedReferenceCount > 0) {
+          SharkLog.d { "HeapDumpTrigger checkRetainedObjects NotifyingNope gc start" }
           gcTrigger.runGc()
+          SharkLog.d { "HeapDumpTrigger checkRetainedObjects NotifyingNope gc end" }
+          // gc后再次检测保留对象个数
           retainedReferenceCount = retainedObjectTracker.retainedObjectCount
+          SharkLog.d { "HeapDumpTrigger checkRetainedObjects NotifyingNope gc after retainedReferenceCount: $retainedReferenceCount" }
         }
 
         val nopeReason = iCanHasHeap.reason()
@@ -133,10 +140,13 @@ internal class HeapDumpTrigger(
     }
 
     var retainedReferenceCount = retainedObjectTracker.retainedObjectCount
-
+    SharkLog.d { "HeapDumpTrigger checkRetainedObjects retainedReferenceCount: $retainedReferenceCount" }
     if (retainedReferenceCount > 0) {
+      SharkLog.d { "HeapDumpTrigger checkRetainedObjects gc start" }
       gcTrigger.runGc()
+      SharkLog.d { "HeapDumpTrigger checkRetainedObjects gc end" }
       retainedReferenceCount = retainedObjectTracker.retainedObjectCount
+      SharkLog.d { "HeapDumpTrigger checkRetainedObjects gc after retainedReferenceCount: $retainedReferenceCount" }
     }
 
     if (checkRetainedCount(retainedReferenceCount, config.retainedVisibleThreshold)) return
@@ -157,11 +167,13 @@ internal class HeapDumpTrigger(
 
     dismissRetainedCountNotification()
     val visibility = if (applicationVisible) "visible" else "not visible"
+    SharkLog.d { "HeapDumpTrigger checkRetainedObjects dumpHeap start" }
     dumpHeap(
       retainedReferenceCount = retainedReferenceCount,
       retry = true,
       reason = "$retainedReferenceCount retained objects, app is $visibility"
     )
+    SharkLog.d { "HeapDumpTrigger checkRetainedObjects dumpHeap end" }
   }
 
   private fun dumpHeap(
@@ -195,6 +207,7 @@ internal class HeapDumpTrigger(
       lastHeapDumpUptimeMillis = SystemClock.uptimeMillis()
       retainedObjectTracker.clearObjectsTrackedBefore(heapDumpUptimeMillis.milliseconds)
       currentEventUniqueId = UUID.randomUUID().toString()
+      SharkLog.d { "InternalLeakCanary.sendEvent HeapDump" }
       InternalLeakCanary.sendEvent(HeapDump(currentEventUniqueId!!, heapDumpFile, durationMillis, reason))
     } catch (throwable: Throwable) {
       InternalLeakCanary.sendEvent(HeapDumpFailed(currentEventUniqueId!!, throwable, retry))
@@ -274,8 +287,8 @@ internal class HeapDumpTrigger(
   }
 
   private fun checkRetainedCount(
-    retainedKeysCount: Int,
-    retainedVisibleThreshold: Int,
+    retainedKeysCount: Int, // gc后保留的对象
+    retainedVisibleThreshold: Int, // 默认保留对象阀值
     nopeReason: String? = null
   ): Boolean {
     val countChanged = lastDisplayedRetainedObjectCount != retainedKeysCount
@@ -303,7 +316,7 @@ internal class HeapDumpTrigger(
             "dumping heap now (app is visible & >=$retainedVisibleThreshold threshold)"
           }
         }
-      } else if (applicationInvisibleLessThanWatchPeriod) {
+      } else if (applicationInvisibleLessThanWatchPeriod) { // 当应用变得不可见时，我们不会立即转储堆。相反，我们会等待应用返回前台，同时也等待通常在按下返回键（活动销毁）时发生的新泄漏
         val wait =
           AppWatcher.retainedDelayMillis - (SystemClock.uptimeMillis() - applicationInvisibleAt)
         if (nopeReason != null) {
@@ -336,6 +349,7 @@ internal class HeapDumpTrigger(
             R.string.leak_canary_notification_retained_visible, retainedVisibleThreshold
           )
         )
+        // 有一次泄露后，循环gc检查对象，每2s执行一次
         scheduleRetainedObjectCheck(
           delayMillis = WAIT_FOR_OBJECT_THRESHOLD_MILLIS
         )
@@ -349,7 +363,10 @@ internal class HeapDumpTrigger(
     delayMillis: Long = 0L
   ) {
     val checkCurrentlyScheduledAt = checkScheduledAt
+    //SharkLog.d { "HeapDumpTrigger scheduleRetainedObjectCheck checkCurrentlyScheduledAt: $checkCurrentlyScheduledAt \r\n${Log.getStackTraceString(Throwable())}" }
+    SharkLog.d { "HeapDumpTrigger scheduleRetainedObjectCheck checkCurrentlyScheduledAt: $checkCurrentlyScheduledAt" }
     if (checkCurrentlyScheduledAt > 0) {
+      // 避免执行太频繁
       return
     }
     checkScheduledAt = SystemClock.uptimeMillis() + delayMillis

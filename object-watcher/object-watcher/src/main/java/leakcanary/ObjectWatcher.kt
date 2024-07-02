@@ -77,6 +77,7 @@ class ObjectWatcher private constructor(
     expectWeaklyReachable(watchedObject, description)
   }
 
+  // 外部可调用此方法，检测任意对象的泄露情况
   override fun expectWeaklyReachable(
     watchedObject: Any,
     description: String
@@ -84,10 +85,14 @@ class ObjectWatcher private constructor(
     if (!isEnabled()) {
       return
     }
+    // 开始跟踪提供的target对象，期望它很快就能进行自动垃圾收集
+    // 即，在返回的RetainTrigger上调用RetainTrigger.markRetainedIfStronglyReachable时，它不应该是强可达的。
+    // 如果target保持强有力地实现，它将被视为“保留”。
     val retainTrigger =
       retainedObjectTracker.expectDeletionOnTriggerFor(watchedObject, description)
-
     checkRetainedExecutor.execute {
+      // 延时5s在UI线程执行
+      // 如果跟踪的对象仍然可强访问，则将其标记为“保留”。
       retainTrigger.markRetainedIfStronglyReachable()
     }
   }

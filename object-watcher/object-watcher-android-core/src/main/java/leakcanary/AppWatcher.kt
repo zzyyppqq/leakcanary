@@ -2,6 +2,7 @@ package leakcanary
 
 import android.app.Application
 import android.os.SystemClock
+import android.util.Log
 import com.squareup.leakcanary.objectwatcher.core.R
 import java.util.concurrent.TimeUnit
 import leakcanary.RootViewWatcher.WindowTypeFilter
@@ -9,6 +10,7 @@ import leakcanary.internal.LeakCanaryDelegate
 import leakcanary.internal.friendly.checkMainThread
 import leakcanary.internal.friendly.mainHandler
 import leakcanary.internal.isDebuggableBuild
+import shark.SharkLog
 
 /**
  * The entry point API for using [ObjectWatcher] in an Android app. [AppWatcher.objectWatcher] is
@@ -91,8 +93,8 @@ object AppWatcher {
   @JvmOverloads
   fun manualInstall(
     application: Application,
-    retainedDelayMillis: Long = TimeUnit.SECONDS.toMillis(5),
-    watchersToInstall: List<InstallableWatcher> = appDefaultWatchers(application)
+    retainedDelayMillis: Long = TimeUnit.SECONDS.toMillis(5), // 启用AppWatcher.objectWatcher的使用，它将期望传入的对象在retainedDelayMillis毫秒内变得弱可达，如果不是，将触发 LeakCanary（如果 LeakCanary 在类路径中）
+    watchersToInstall: List<InstallableWatcher> = appDefaultWatchers(application)// Activity、Fragment、View、Dialog、Service生命周期观察者列表
   ) {
     checkMainThread()
     if (isInstalled) {
@@ -107,9 +109,11 @@ object AppWatcher {
     if (application.isDebuggableBuild) {
       LogcatSharkLog.install()
     }
+    // 反射调用InternalLeakCanary.invoke(application)
+    SharkLog.d { "AppWatcher manualInstall \r\n${Log.getStackTraceString(Throwable())}" }
     // Requires AppWatcher.objectWatcher to be set
     LeakCanaryDelegate.loadLeakCanary(application)
-
+    // 启用组件销毁监听
     watchersToInstall.forEach {
       it.install()
     }

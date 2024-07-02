@@ -1,5 +1,6 @@
 package leakcanary.internal
 
+import android.util.Log
 import java.io.File
 import java.io.IOException
 import leakcanary.EventListener
@@ -25,6 +26,7 @@ import shark.OnAnalysisProgressListener
 import shark.OnAnalysisProgressListener.Step.PARSING_HEAP_DUMP
 import shark.OnAnalysisProgressListener.Step.REPORTING_HEAP_ANALYSIS
 import shark.ProguardMappingReader
+import shark.SharkLog
 import shark.ThrowingCancelableFileSourceProvider
 
 /**
@@ -46,7 +48,9 @@ internal object AndroidDebugHeapAnalyzer {
     isCanceled: () -> Boolean = { false },
     progressEventListener: (HeapAnalysisProgress) -> Unit
   ): HeapAnalysisDone<*> {
+    SharkLog.d { "AndroidDebugHeapAnalyzer runAnalysisBlocking \r\n${Log.getStackTraceString(Throwable())}" }
     val progressListener = OnAnalysisProgressListener { step ->
+      SharkLog.d { "AndroidDebugHeapAnalyzer runAnalysisBlocking step: $step" }
       val percent = (step.ordinal * 1.0) / OnAnalysisProgressListener.Step.values().size
       progressEventListener(HeapAnalysisProgress(heapDumped.uniqueId, step, percent))
     }

@@ -116,6 +116,7 @@ class HeapAnalyzer constructor(
   /**
    * Searches the heap dump for leaking instances and then computes the shortest strong reference
    * path from those instances to the GC roots.
+   * 在堆转储中搜索泄漏的实例，然后计算从这些实例到 GC 根的最短强引用路径。
    */
   fun analyze(
     heapDumpFile: File,

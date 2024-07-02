@@ -6,6 +6,7 @@ import android.content.ContentValues
 import android.database.Cursor
 import android.net.Uri
 import leakcanary.AppWatcher
+import shark.SharkLog
 
 /**
  * Content providers are loaded before the application class is created. [MainProcessAppWatcherInstaller] is
@@ -18,6 +19,7 @@ internal class MainProcessAppWatcherInstaller : ContentProvider() {
 
   override fun onCreate(): Boolean {
     val application = context!!.applicationContext as Application
+    SharkLog.d { "MainProcessAppWatcherInstaller ContentProvider onCreate()" }
     AppWatcher.manualInstall(application)
     return true
   }

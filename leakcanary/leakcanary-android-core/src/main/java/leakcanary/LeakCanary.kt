@@ -1,6 +1,7 @@
 package leakcanary
 
 import android.content.Intent
+import android.util.Log
 import leakcanary.LeakCanary.config
 import leakcanary.internal.HeapDumpControl
 import leakcanary.internal.InternalLeakCanary
@@ -363,6 +364,7 @@ object LeakCanary {
 
       "Updated LeakCanary.config: Config($changesInConfig)"
     }
+    SharkLog.d { "LeakCanary logConfigChange ${Log.getStackTraceString(Throwable())}" }
   }
 
   /**

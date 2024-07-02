@@ -84,10 +84,13 @@ class ReferenceQueueRetainedObjectTracker constructor(
     target: Any,
     reason: String
   ): RetainTrigger {
+    SharkLog.d { "ReferenceQueueRetainedObjectTracker expectDeletionOnTriggerFor [${Thread.currentThread().stackTrace.map { it.toString() + "\r\n" }.toTypedArray().contentToString()}]" }
+    // 先清除弱引用队列及观察的弱引用对象
     removeWeaklyReachableObjects()
     val key = UUID.randomUUID()
       .toString()
     val watchUptime = clock.uptime()
+    // 销毁前将对象加入引用队列
     val reference =
       KeyedWeakReference(target, key, reason, watchUptime.inWholeMilliseconds, queue)
     SharkLog.d {
@@ -96,8 +99,9 @@ class ReferenceQueueRetainedObjectTracker constructor(
         (if (reason.isNotEmpty()) " ($reason)" else "") +
         " with key $key"
     }
-
+    // 观察的弱引用对象放入map
     watchedObjects[key] = reference
+    SharkLog.d { "ReferenceQueueRetainedObjectTracker expectDeletionOnTriggerFor watchedObjects size: ${watchedObjects.size}, key: $key, value reference: $reference" }
     return object : RetainTrigger {
       override val isStronglyReachable: Boolean
         get() {
@@ -139,6 +143,7 @@ class ReferenceQueueRetainedObjectTracker constructor(
     val retainedRef = watchedObjects[key]
     if (retainedRef != null) {
       retainedRef.retainedUptimeMillis = clock.uptime().inWholeMilliseconds
+      SharkLog.d { "ReferenceQueueRetainedObjectTracker moveToRetained() -> InternalLeakCanary.onObjectRetained() -> HeapDumpTrigger.scheduleRetainedObjectCheck() -> checkRetainedObjects()" }
       onObjectRetainedListener.onObjectRetained()
     }
   }
@@ -148,7 +153,7 @@ class ReferenceQueueRetainedObjectTracker constructor(
     // reachable. This is before finalization or garbage collection has actually happened.
     var ref: KeyedWeakReference?
     do {
-      ref = queue.poll() as KeyedWeakReference?
+      ref = queue.poll() as KeyedWeakReference? // 检索并移除队列中的队头元素，如果队列为空，则返回 null
       if (ref != null) {
         watchedObjects.remove(ref.key)
       }

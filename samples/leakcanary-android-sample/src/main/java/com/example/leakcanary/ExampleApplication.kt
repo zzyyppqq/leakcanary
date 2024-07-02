@@ -36,7 +36,7 @@ open class ExampleApplication : Application() {
       StrictMode.ThreadPolicy.Builder()
         .detectAll()
         .penaltyLog()
-        .penaltyDeath()
+//        .penaltyDeath()
         .build()
     )
   }
